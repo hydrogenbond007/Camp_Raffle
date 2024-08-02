@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epoch Raffle</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.0.umd.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { margin: 10px 0; padding: 10px; }
+        input { margin: 10px 0; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Epoch Raffle</h1>
+    <div id="connection-status">Not connected to Ethereum</div>
+    <button onclick="connectWallet()">Connect Wallet</button>
+
+    <h2>Deposit</h2>
+    <input type="number" id="deposit-amount" placeholder="Amount in ETH">
+    <button onclick="deposit()">Deposit</button>
+
+    <h2>Current Epoch Info</h2>
+    <button onclick="getCurrentEpochInfo()">Get Current Epoch Info</button>
+    <div id="epoch-info"></div>
+
+    <h2>Pick Winner</h2>
+    <button onclick="pickWinner()">Pick Winner</button>
+
+    <script>
+        const contractAddress = 'YOUR_CONTRACT_ADDRESS_HERE';
+        const contractABI = [
+            "function deposit() public payable",
+            "function getCurrentEpochInfo() public view returns (uint256 startTime, uint256 endTime, uint256 totalPrize, uint256 participantCount)",
+            "function pickWinner() public"
+        ];
+
+        let provider, signer, contract;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    await ethereum.request({ method: 'eth_requestAccounts' });
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    contract = new ethers.Contract(contractAddress, contractABI, signer);
+                    document.getElementById('connection-status').innerText = 'Connected to Ethereum';
+                } catch (error) {
+                    console.error("User denied account access");
+                }
+            } else {
+                console.log('Please install MetaMask!');
+            }
+        }
+
+        async function deposit() {
+            if (!contract) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            const amount = document.getElementById('deposit-amount').value;
+            try {
+                const tx = await contract.deposit({ value: ethers.utils.parseEther(amount) });
+                await tx.wait();
+                alert('Deposit successful!');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Deposit failed. See console for details.');
+            }
+        }
+
+        async function getCurrentEpochInfo() {
+            if (!contract) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            try {
+                const info = await contract.getCurrentEpochInfo();
+                const epochInfoDiv = document.getElementById('epoch-info');
+                epochInfoDiv.innerHTML = `
+                    Start Time: ${new Date(info.startTime.toNumber() * 1000).toLocaleString()}<br>
+                    End Time: ${new Date(info.endTime.toNumber() * 1000).toLocaleString()}<br>
+                    Total Prize: ${ethers.utils.formatEther(info.totalPrize)} ETH<br>
+                    Participant Count: ${info.participantCount}
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to get epoch info. See console for details.');
+            }
+        }
+
+        async function pickWinner() {
+            if (!contract) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            try {
+                const tx = await contract.pickWinner();
+                await tx.wait();
+                alert('Winner picking initiated!');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to pick winner. See console for details.');
+            }
+        }
+    </script>
+</body>
+</html>
